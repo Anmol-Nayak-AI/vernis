@@ -7,9 +7,12 @@ from typing import Any
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
 from fastapi.concurrency import run_in_threadpool
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -19,6 +22,7 @@ from app.services.image_service import ImageGenerationError, generate_artwork
 from app.services.billing_service import create_checkout_session
 from app.services.curator_crew import run_art_advisory
 from app.style_catalog import ART_STYLES, public_style_catalog
+from app.api.v1 import router as api_v1_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -31,14 +35,51 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/generated", StaticFiles(directory=settings.generated_assets_dir, check_dir=False), name="generated")
+app.include_router(api_v1_router)
 
 generation_jobs: dict[str, dict[str, Any]] = {}
 generation_jobs_lock = Lock()
 
 
+@app.exception_handler(HTTPException)
+async def versioned_http_error(request: Request, exc: HTTPException):
+    if not request.url.path.startswith("/api/v1/"):
+        return await http_exception_handler(request, exc)
+    message = exc.detail if isinstance(exc.detail, str) else "The request could not be completed."
+    return JSONResponse(
+        status_code=exc.status_code,
+        headers=exc.headers,
+        content={
+            "error": {
+                "code": f"http_{exc.status_code}",
+                "message": message,
+                "request_id": getattr(request.state, "request_id", None),
+            }
+        },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def versioned_validation_error(request: Request, exc: RequestValidationError):
+    if not request.url.path.startswith("/api/v1/"):
+        return await request_validation_exception_handler(request, exc)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "error": {
+                "code": "validation_error",
+                "message": "Request validation failed.",
+                "request_id": getattr(request.state, "request_id", None),
+                "fields": jsonable_encoder(exc.errors()),
+            }
+        },
+    )
+
+
 @app.middleware("http")
 async def request_context(request: Request, call_next):
     request_id = request.headers.get("x-request-id", uuid.uuid4().hex)
+    request.state.request_id = request_id
     started_at = time.perf_counter()
     response = await call_next(request)
     response.headers["x-request-id"] = request_id

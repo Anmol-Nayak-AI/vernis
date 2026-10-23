@@ -37,6 +37,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase || !session?.user) { setWorkspaceId(null); setWorkspaceRole(null); return; }
+    // The Phase 1 platform routes use FastAPI as the authority for workspace
+    // creation and membership. Retain browser-led onboarding only for the
+    // explicitly preserved legacy prototype.
+    if (!window.location.pathname.startsWith('/legacy')) {
+      setWorkspaceId(null);
+      setWorkspaceRole(null);
+      return;
+    }
     const client = supabase;
     let active = true;
     const ensureStudio = async () => {

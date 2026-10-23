@@ -1,12 +1,13 @@
 import os
 from functools import lru_cache
-from typing import List
+from typing import List, Literal
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     # App Config
-    app_name: str = "AgentCanvas Studio API"
+    app_name: str = "Vernis Art Intelligence API"
     environment: str = "development"
     app_debug: bool = False
     host: str = "0.0.0.0"
@@ -21,6 +22,31 @@ class Settings(BaseSettings):
     generated_assets_dir: str = os.path.join(
         os.path.dirname(os.path.dirname(__file__)), "generated"
     )
+
+    # Canonical application persistence. Supabase-hosted Postgres is supported
+    # through a regular direct connection; tests override this with SQLite.
+    database_url: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres"
+    database_schema: str = "vernis"
+    database_echo: bool = False
+    redis_url: str = "redis://127.0.0.1:6379/0"
+
+    # Private asset storage. Local mode is intentionally development-only.
+    storage_backend: Literal["local", "s3"] = "local"
+    storage_root: str = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "storage"
+    )
+    storage_bucket: str = "vernis-private"
+    storage_endpoint_url: str = ""
+    storage_region: str = "us-east-1"
+    storage_access_key_id: str = ""
+    storage_secret_access_key: str = ""
+    storage_signing_secret: str = "development-only-change-me-before-production"
+    upload_max_bytes: int = 50 * 1024 * 1024
+    upload_intent_ttl_seconds: int = 900
+
+    # Fixed, clearly non-production identity used only when AUTH_REQUIRED=false.
+    development_user_id: str = "00000000-0000-0000-0000-000000000001"
+    development_user_email: str = "local@vernis.test"
 
     # Identity and authorization. Keep AUTH_REQUIRED false for local evaluation;
     # production deployments should enable it after configuring Supabase.
@@ -46,11 +72,27 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
+    @model_validator(mode="after")
+    def validate_deployment_security(self) -> "Settings":
+        if self.auth_required and not self.supabase_url:
+            raise ValueError("SUPABASE_URL is required when AUTH_REQUIRED=true")
+        if self.environment == "production":
+            if not self.auth_required:
+                raise ValueError("AUTH_REQUIRED must be true in production")
+            if self.storage_backend != "s3":
+                raise ValueError("STORAGE_BACKEND must be s3 in production")
+            if self.storage_signing_secret == "development-only-change-me-before-production":
+                raise ValueError("STORAGE_SIGNING_SECRET must be replaced in production")
+            if len(self.storage_signing_secret) < 32:
+                raise ValueError("STORAGE_SIGNING_SECRET must contain at least 32 characters")
+        return self
+
     # Pydantic v2 configuration
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"),
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
+        case_sensitive=False,
     )
 
 

@@ -1,6 +1,6 @@
 # VERNIS Master Rebuild Plan
 
-Status: Phase 0 architecture proposal — application code and persisted data are unchanged pending approval
+Status: Phase 0 approved; Phase 1 foundation implemented for review on 2026-10-23
 
 Prepared: 2026-10-23
 
@@ -667,3 +667,23 @@ The following do not block approval of this plan, but they must be resolved befo
 - Select the first external AI provider data-handling policy and whether confidential assets require a local-only processing option.
 - Identify licensed source options for market comparables, conservation training/evaluation, and ArtShield external discovery.
 - Confirm whether legacy generated works are customer data, demonstration assets, or disposable development output; no assumption will be made.
+
+## 20. Phase 1 implementation checkpoint
+
+Implemented on 2026-10-23 without deleting or renaming legacy application code, database objects, or generated assets:
+
+- Added a routed public experience and organization application shell; preserved the prior prototype at `/legacy`.
+- Added real organization onboarding, Command Center metrics, Artwork Registry list/create/detail, and secure image upload against `/api/v1`.
+- Added SQLAlchemy models, a locked Python environment, an additive Alembic `vernis` schema migration, explicit grants, forced RLS policies, pgTAP policy checks, and a read-only database inspection command.
+- Added tenant-scoped role checks, single-use upload intents, bounded streaming intake, Pillow decode/MIME checks, SHA-256 fingerprints, local and S3-compatible private storage, expiring downloads, audit events, and durable asset-intake job records.
+- Added Dockerfiles, Compose services for PostgreSQL/pgvector, Redis, API, worker, and frontend, plus CI for migration, RLS, tests, audit, build, and browser onboarding.
+
+Verification completed in this workspace:
+
+- Backend Ruff and pytest: passed (`3 passed`; PostgreSQL-only RLS test skips without its explicit database URL).
+- Frontend Vitest, TypeScript production build, and production dependency audit: passed.
+- Playwright Chromium onboarding/register/upload/detail flow: passed against a fresh local SQLite test database and private asset directory.
+- Alembic offline PostgreSQL SQL rendering, Compose configuration parsing, lock consistency, Python compilation, and Git whitespace checks: passed.
+- Desktop and mobile landing-page renders were inspected after the final build.
+
+The Docker daemon was unavailable in the implementation environment, so the live PostgreSQL migration/RLS test and full Compose boot are encoded in CI but were not executed locally. No hosted Supabase project was mutated. Phase 2 remains gated on review of this checkpoint.

@@ -1,3 +1,2 @@
-# Optional multi-agent advisory service. CrewAI currently requires Python 3.10+.
--r requirements.txt
-crewai>=1.0.0
+# Compatibility entry point. pyproject.toml and uv.lock are authoritative.
+-e .[agents,legacy]

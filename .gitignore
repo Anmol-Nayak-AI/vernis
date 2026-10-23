@@ -9,4 +9,15 @@ venv/
 node_modules/
 frontend/dist/
 frontend/*.tsbuildinfo
+frontend/playwright-report/
+frontend/test-results/
 backend/generated/
+backend/storage/
+backend/.coverage
+backend/htmlcov/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+supabase/.temp/
+.codex/

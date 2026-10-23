@@ -1,101 +1,117 @@
-# Vernis — Art Intelligence Platform
+# Vernis — Art Intelligence Operating System
 
-Vernis is trust and commerce infrastructure for AI-assisted art. It helps artists and galleries move from an art-directed image to a professionally reviewed, evidence-backed cultural object with a living authorship, rights, provenance, edition, and ownership record.
+Vernis is an organization-scoped foundation for evidence-backed artwork intelligence. Phase 1 provides the production-oriented SaaS base: authenticated workspaces, role enforcement, a canonical Artwork Registry, private validated asset intake, durable audit/job records, and a live Command Center. The six intelligence engines are presented as planned workflows and do not emit simulated findings.
 
-## Product surface
+The original AgentCanvas prototype remains available at `/legacy`. No legacy tables, generated files, or source modules are deleted by this phase.
 
-- **AI Atelier:** 36 material-aware art directions, automatic direction, style blending, palette intent, originality control, 4 aspect ratios, 4 quality tiers, and resumable background renders with up to 4 variants.
-- **Art discovery:** public-domain masterworks from the Art Institute of Chicago API, an artist index, and original visual-language studies.
-- **Commerce:** fixed-price listings, digital-collectible-ready records, timed auction models, bid history, editions, USD pricing, and international settlement controls.
-- **Trust:** SHA-256 master fingerprints, downloadable artwork passports, evidence-completeness controls, provenance events, rights declarations, immutable-style audit records, and separation of public previews from private masters.
-- **Enterprise workspace:** owner/admin/curator/artist/finance/viewer roles, private collections, team surfaces, usage records, and billing status.
-- **Immersive interface:** Motion page transitions and a lazily loaded React Three Fiber gallery object.
-- **Vernis Art Council:** separate curator, provenance/rights, and market-strategy agents synthesize a human-review dossier. CrewAI is the preferred orchestrator; a native OpenAI agent council keeps local development functional when CrewAI is unavailable.
-
-## Architecture
+## Phase 1 architecture
 
 ```text
-React + Vite + Motion
-             │
-             ├── Supabase Auth + Postgres/RLS (identity, studio, commerce, provenance)
-             ├── FastAPI (token verification, background generation jobs, billing, advisory)
-             ├── OpenAI image generation (primary/fallback models)
-             ├── Stripe hosted Checkout (credential-gated)
-             └── CrewAI council or native OpenAI agent orchestration
+React 18 + Vite + React Router + TanStack Query
+                       │
+                       ▼
+              FastAPI /api/v1
+          auth + organization RBAC
+               │       │
+               │       └── private local/S3-compatible asset storage
+               ▼
+      PostgreSQL 17 + RLS + pgvector
+               │
+               └── Redis + Celery worker foundation
 ```
 
-The browser only receives Supabase publishable credentials. Supabase service-role keys, Stripe secrets, and provider keys must remain server-side. Every table exposed through Supabase has row-level security enabled in the included migration.
+FastAPI is the application authorization boundary. Every business query is scoped by `organization_id`; PostgreSQL RLS and explicit Data API grants provide defense in depth. Uploaded images are size checked, decoded with Pillow, matched against their declared MIME type, SHA-256 fingerprinted, kept private, and served through expiring links. A fingerprint identifies file bytes—it is not evidence of authenticity.
 
-## Run locally
+## Fastest local start
 
-Use Python 3.10–3.13 and Node 22.12+.
+Docker Desktop or another Docker daemon is required:
 
 ```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-# Add OPENAI_API_KEY. Supabase and Stripe can remain disabled for UI evaluation.
-uvicorn app.main:app --reload --port 8000
+docker compose up --build
+```
+
+Open `http://localhost:8080`. The Compose profile starts PostgreSQL/pgvector, Redis, applies Alembic migrations, starts the API and Celery worker, and serves the frontend. Development authentication is intentionally fixed and local while `AUTH_REQUIRED=false`.
+
+Persistent named volumes hold PostgreSQL, Redis, and private uploaded assets. `docker compose down` stops services without deleting those volumes. Do not use `docker compose down -v` if you need the local records.
+
+## Native development
+
+Prerequisites: Python 3.10–3.13, [uv](https://docs.astral.sh/uv/), Node 22.12+, PostgreSQL 17 with pgvector, and Redis.
+
+```bash
+make install
+docker compose up -d postgres redis
+make migrate
+make dev-api
 ```
 
 In a second terminal:
 
 ```bash
-cd frontend
-npm ci
-cp .env.example .env.local
-npm run dev
+make dev-web
 ```
 
-Open `http://localhost:5173`. Vite proxies `/api` and `/generated` to FastAPI.
+Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env.local` when enabling external providers. `backend/pyproject.toml` and `backend/uv.lock` are authoritative; the requirements files are compatibility entry points only.
 
-## Enable authentication and cloud persistence
+## Authentication and production storage
 
-1. Create a Supabase project.
-2. Apply [`supabase/migrations/20261022145558_enterprise_art_platform.sql`](supabase/migrations/20261022145558_enterprise_art_platform.sql) using `npx supabase db push` from a linked project.
-3. Put `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in `frontend/.env.local`.
-4. Put the same `SUPABASE_URL` in `backend/.env` and set `AUTH_REQUIRED=true` for production.
-5. Configure the desired sign-in providers and exact redirect URLs in Supabase Auth.
+For Supabase Auth, configure `SUPABASE_URL`, set `AUTH_REQUIRED=true`, and set the browser-safe `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Never expose a service-role key to the frontend.
 
-On first authenticated use, the client creates the user's profile, private workspace, and owner membership through RLS-protected inserts. Generated artwork records then persist to the workspace archive.
+Production startup rejects disabled authentication, local storage, and the default signing secret. Configure an S3-compatible private bucket with:
 
-## Enable Stripe billing
+```text
+STORAGE_BACKEND=s3
+STORAGE_BUCKET=...
+STORAGE_ENDPOINT_URL=...       # optional for AWS S3
+STORAGE_REGION=...
+STORAGE_ACCESS_KEY_ID=...
+STORAGE_SECRET_ACCESS_KEY=...
+STORAGE_SIGNING_SECRET=...     # at least 32 random characters
+```
 
-Create recurring prices in Stripe and set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_CREATOR`, `STRIPE_PRICE_STUDIO`, and `STRIPE_PRICE_ENTERPRISE` in `backend/.env`. Checkout uses Stripe's hosted page; Vernis never handles raw card data. A production launch should add webhook-driven entitlement reconciliation before access is granted from a payment event.
-
-## Enable CrewAI advisory
-
-CrewAI currently requires Python 3.10+. Install the optional bundle and enable it explicitly:
+The additive Alembic migration creates the separate `vernis` schema and does not rename or drop legacy `public` tables. Supabase RLS checks live in `supabase/tests/vernis_phase1_rls.sql`. Before applying to any existing hosted project, take a backup and reconcile its live schema:
 
 ```bash
-cd backend
-pip install -r requirements-agents.txt
-# in .env
-CREW_ENABLED=true
-CREW_MODEL=gpt-4o-mini
+make migration-check   # renders SQL without mutating a database
+make migrate
+make db-inspect        # read-only table/revision/RLS summary
 ```
 
-`POST /api/advisory/analyze` runs sequential curator, rights/provenance, and market agents, followed by a chief dossier editor. Without CrewAI, the endpoint automatically uses the native OpenAI agent council. Output is informational and must not be treated as legal, tax, investment, valuation, or authenticity certification.
+## Current API
 
-## API surface
+- `GET /api/v1/health/live` and `GET /api/v1/health/ready`
+- `GET|POST /api/v1/organizations`
+- `GET /api/v1/organizations/{organization_id}/command-center`
+- `GET|POST /api/v1/organizations/{organization_id}/artworks`
+- `GET /api/v1/organizations/{organization_id}/artworks/{artwork_id}`
+- `POST /api/v1/organizations/{organization_id}/assets/upload-intents`
+- `PUT /api/v1/assets/uploads/{single_use_token}`
+- `GET /api/v1/organizations/{organization_id}/assets/{asset_id}/download`
 
-- `GET /api/studio/styles`
-- `POST /api/studio/jobs` — starts a resumable render and returns immediately
-- `GET /api/studio/jobs/{job_id}` — polls queued, running, succeeded, and failed states
-- `POST /api/studio/generate` — synchronous compatibility endpoint
-- `POST /api/billing/checkout` — authenticated and credential-gated
-- `POST /api/advisory/analyze` — multi-agent artwork dossier; auth follows the server's `AUTH_REQUIRED` policy
-- `GET /api/platform/capabilities`
-- `POST /api/compare` — retained architecture diagnostic
+The legacy `/api/studio`, billing, advisory, and architecture-demo endpoints remain available for `/legacy`; they are not part of the new Phase 1 authority model.
 
 ## Verification
 
 ```bash
-cd frontend && npm run build && npm audit --omit=dev
-cd ../backend && python3 -m compileall -q app
-curl http://127.0.0.1:8000/api/platform/capabilities
+make lint
+make test
+make build
+docker compose config --quiet
 ```
 
-Generated images are written to `backend/generated` for local development and their SHA-256 fingerprint is included in the generation response. The browser preserves a local studio archive and can export a portable JSON artwork passport. Local background jobs survive browser navigation but remain process-local. Production should move private masters and passport evidence to signed object-storage URLs, replace the in-process runner with a durable queue (for example Redis plus workers), add rate limits, configure Stripe webhooks and tax rules, perform jurisdiction-specific KYC/AML review, and deploy observability and backups before accepting real money.
+With migrated PostgreSQL available, set `VERNIS_TEST_DATABASE_URL` to run the live RLS integration test. With the API and frontend running, install Chromium once and run the real onboarding/upload browser flow:
+
+```bash
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+```
+
+CI repeats linting, unit/API tests, a PostgreSQL migration plus cross-tenant RLS test, the frontend production build/audit, and the Playwright onboarding/upload journey.
+
+## Product and rebuild documentation
+
+- [Master rebuild plan](docs/VERNIS_MASTER_REBUILD_PLAN.md)
+- [UI design specification](docs/VERNIS_UI_DESIGN_SPEC.md)
+
+Phase 2 begins shared computer-vision infrastructure only after this foundation is reviewed. ArtSentinel and the other engines are not represented as complete in Phase 1.
