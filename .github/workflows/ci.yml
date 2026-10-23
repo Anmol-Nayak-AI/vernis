@@ -14,6 +14,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:54322/vernis
       VERNIS_TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:54322/vernis
+      VERNIS_POSTGRES_PORT: "54322"
       STORAGE_SIGNING_SECRET: ci-only-signing-secret
       AUTH_REQUIRED: "false"
     steps:

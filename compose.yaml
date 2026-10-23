@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "54322:5432"
+      - "${VERNIS_POSTGRES_PORT:-55432}:5432"
     volumes:
       - vernis-postgres:/var/lib/postgresql/data
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -19,10 +19,10 @@ services:
       retries: 20
 
   redis:
-    image: redis:8.2.2-alpine
+    image: redis:8.2.2-bookworm
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "${VERNIS_REDIS_PORT:-56379}:6379"
     volumes:
       - vernis-redis:/data
     healthcheck:
@@ -44,7 +44,7 @@ services:
       ALLOWED_ORIGINS: http://localhost:8080,http://127.0.0.1:8080
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     ports:
-      - "8000:8000"
+      - "${VERNIS_API_PORT:-18000}:8000"
     volumes:
       - vernis-assets:/app/storage
     depends_on:
@@ -77,7 +77,7 @@ services:
     build:
       context: ./frontend
     ports:
-      - "8080:80"
+      - "${VERNIS_WEB_PORT:-8080}:80"
     depends_on:
       api:
         condition: service_healthy

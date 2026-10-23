@@ -38,6 +38,8 @@ Persistent named volumes hold PostgreSQL, Redis, and private uploaded assets. `d
 
 Prerequisites: Python 3.10–3.13, [uv](https://docs.astral.sh/uv/), Node 22.12+, PostgreSQL 17 with pgvector, and Redis.
 
+The Compose defaults deliberately use host ports `55432` for PostgreSQL, `56379` for Redis, and `18000` for the API so they can coexist with a standard local Supabase stack. Override them with `VERNIS_POSTGRES_PORT`, `VERNIS_REDIS_PORT`, or `VERNIS_API_PORT` when needed.
+
 ```bash
 make install
 docker compose up -d postgres redis
