@@ -61,3 +61,7 @@ class S3AssetStore:
             Params={"Bucket": settings.storage_bucket, "Key": object_key},
             ExpiresIn=expires_in,
         )
+
+    def read_bytes(self, object_key: str) -> bytes:
+        response = self.client.get_object(Bucket=settings.storage_bucket, Key=object_key)
+        return response["Body"].read()

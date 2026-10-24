@@ -90,6 +90,9 @@ class LocalAssetStore:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset was not found.")
         return candidate
 
+    def read_bytes(self, object_key: str) -> bytes:
+        return self.path_for(object_key).read_bytes()
+
 
 def new_upload_token() -> str:
     return secrets.token_urlsafe(32)

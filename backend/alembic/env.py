@@ -23,6 +23,19 @@ if config.config_file_name:
 
 target_metadata = Base.metadata
 
+# These PostgreSQL-specific expression/access-method indexes are created with
+# explicit SQL in reviewed migrations. They are not portable ORM metadata and
+# must not be interpreted as schema drift by Alembic autogeneration.
+MIGRATION_MANAGED_INDEXES = {
+    "ix_embeddings_hnsw_cosine",
+    "ix_evidence_chunks_hnsw_cosine",
+    "ix_evidence_documents_fts",
+}
+
+
+def include_object(_object, name: str | None, type_: str, _reflected: bool, _compare_to) -> bool:
+    return not (type_ == "index" and name in MIGRATION_MANAGED_INDEXES)
+
 
 def run_migrations_offline() -> None:
     context.configure(
@@ -31,6 +44,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         include_schemas=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -48,6 +62,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             include_schemas=True,
             compare_type=True,
+            include_object=include_object,
         )
         with context.begin_transaction():
             context.run_migrations()

@@ -8,7 +8,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_LINK_MODE=copy \
     PATH="/app/.venv/bin:$PATH"
 
-RUN addgroup --system vernis && adduser --system --ingroup vernis --home /app vernis
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system vernis \
+    && adduser --system --ingroup vernis --home /app vernis
 WORKDIR /app
 
 COPY --from=uv /uv /uvx /bin/

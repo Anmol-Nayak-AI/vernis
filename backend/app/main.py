@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import time
 import uuid
@@ -11,6 +12,7 @@ from fastapi.exception_handlers import http_exception_handler, request_validatio
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
@@ -23,6 +25,11 @@ from app.services.billing_service import create_checkout_session
 from app.services.curator_crew import run_art_advisory
 from app.style_catalog import ART_STYLES, public_style_catalog
 from app.api.v1 import router as api_v1_router
+from app.api.v1.forensics import router as forensics_router
+from app.api.v1.engines import router as engines_router
+from app.api.v1.billing import router as billing_router
+from app.core.observability import metrics
+from app.core.rate_limit import RateLimitMiddleware
 
 logging.basicConfig(level=logging.INFO)
 
@@ -34,8 +41,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
 app.mount("/generated", StaticFiles(directory=settings.generated_assets_dir, check_dir=False), name="generated")
 app.include_router(api_v1_router)
+app.include_router(forensics_router)
+app.include_router(engines_router)
+app.include_router(billing_router)
 
 generation_jobs: dict[str, dict[str, Any]] = {}
 generation_jobs_lock = Lock()
@@ -82,11 +93,33 @@ async def request_context(request: Request, call_next):
     request.state.request_id = request_id
     started_at = time.perf_counter()
     response = await call_next(request)
+    duration_ms = (time.perf_counter() - started_at) * 1000
+    route = getattr(request.scope.get("route"), "path", request.url.path)
+    metrics.observe(request.method, route, response.status_code, duration_ms)
+    logging.info(
+        json.dumps(
+            {
+                "event": "http_request",
+                "request_id": request_id,
+                "method": request.method,
+                "route": route,
+                "status": response.status_code,
+                "duration_ms": round(duration_ms, 2),
+            }
+        )
+    )
     response.headers["x-request-id"] = request_id
     response.headers["x-content-type-options"] = "nosniff"
     response.headers["referrer-policy"] = "strict-origin-when-cross-origin"
-    response.headers["x-process-time-ms"] = f"{(time.perf_counter() - started_at) * 1000:.1f}"
+    response.headers["permissions-policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["content-security-policy"] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers["x-process-time-ms"] = f"{duration_ms:.1f}"
     return response
+
+
+@app.get("/api/v1/metrics", response_class=PlainTextResponse, include_in_schema=False)
+def prometheus_metrics() -> str:
+    return metrics.prometheus()
 
 
 class AgentRequest(BaseModel):

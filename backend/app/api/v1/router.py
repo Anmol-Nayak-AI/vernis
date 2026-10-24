@@ -28,9 +28,14 @@ from app.db.models import (
     Artwork,
     ArtworkAsset,
     AuditEvent,
+    CollectionRecord,
+    CopyrightMatch,
+    DamageFinding,
+    EngineCase,
     Job,
     Organization,
     OrganizationMembership,
+    Shipment,
     UploadIntent,
 )
 from app.db.session import get_db
@@ -161,19 +166,72 @@ def command_center(
 ) -> CommandCenterRead:
     require_membership(db, organization_id, principal)
     artwork_count = db.scalar(select(func.count()).select_from(Artwork).where(Artwork.organization_id == organization_id)) or 0
+    active_investigations = db.scalar(
+        select(func.count()).select_from(EngineCase).where(
+            EngineCase.organization_id == organization_id,
+            EngineCase.status.in_(["queued", "running", "awaiting_review", "changes_requested"]),
+        )
+    ) or 0
     active_jobs = db.scalar(
         select(func.count())
         .select_from(Job)
         .where(Job.organization_id == organization_id, Job.status.in_(["queued", "running", "awaiting_review"]))
     ) or 0
+    pending_reviews = db.scalar(
+        select(func.count()).select_from(EngineCase).where(
+            EngineCase.organization_id == organization_id,
+            EngineCase.status == "awaiting_review",
+        )
+    ) or 0
+    potential_matches = db.scalar(
+        select(func.count()).select_from(CopyrightMatch).where(
+            CopyrightMatch.organization_id == organization_id,
+            CopyrightMatch.classification.in_(["near_duplicate", "potential_reproduction", "unreviewed"]),
+        )
+    ) or 0
+    condition_alerts = db.scalar(
+        select(func.count()).select_from(DamageFinding).where(
+            DamageFinding.organization_id == organization_id,
+            DamageFinding.review_status == "unreviewed",
+        )
+    ) or 0
+    active_shipments = db.scalar(
+        select(func.count()).select_from(Shipment).where(
+            Shipment.organization_id == organization_id,
+            Shipment.status.in_(["planned", "packed", "in_transit", "arrived", "review"]),
+        )
+    ) or 0
+    collection_completeness = db.scalar(
+        select(func.avg(CollectionRecord.completeness_score)).where(CollectionRecord.organization_id == organization_id)
+    )
+    month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    workflows_this_month = db.scalar(
+        select(func.count()).select_from(EngineCase).where(
+            EngineCase.organization_id == organization_id,
+            EngineCase.created_at >= month_start,
+        )
+    ) or 0
+    recent_cases = db.scalars(
+        select(EngineCase)
+        .where(EngineCase.organization_id == organization_id)
+        .order_by(EngineCase.updated_at.desc())
+        .limit(6)
+    ).all()
     return CommandCenterRead(
         registered_artworks=artwork_count,
+        active_investigations=active_investigations,
         active_jobs=active_jobs,
-        pending_reviews=0,
-        potential_copyright_matches=0,
-        condition_alerts=0,
-        active_shipments=0,
-        collection_completeness=None,
+        pending_reviews=pending_reviews,
+        potential_copyright_matches=potential_matches,
+        condition_alerts=condition_alerts,
+        active_shipments=active_shipments,
+        collection_completeness=round(collection_completeness) if collection_completeness is not None else None,
+        workflows_this_month=workflows_this_month,
+        recent_workflows=[
+            {"id": str(case.id), "engine": case.engine, "title": case.title, "status": case.status,
+             "updated_at": case.updated_at.isoformat()}
+            for case in recent_cases
+        ],
         onboarding_complete=artwork_count > 0,
     )
 

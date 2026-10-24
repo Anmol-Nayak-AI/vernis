@@ -1,119 +1,85 @@
 # Vernis — Art Intelligence Operating System
 
-Vernis is an organization-scoped foundation for evidence-backed artwork intelligence. Phase 1 provides the production-oriented SaaS base: authenticated workspaces, role enforcement, a canonical Artwork Registry, private validated asset intake, durable audit/job records, and a live Command Center. The six intelligence engines are presented as planned workflows and do not emit simulated findings.
+Vernis is a multi-tenant workspace for evidence-backed artwork intelligence. One canonical artwork record can participate in six independent, human-reviewed workflows: ArtSentinel, ArtShield, ConservaVision, MuseGraph, ArtValuate, and ArtTransit.
 
-The original AgentCanvas prototype remains available at `/legacy`. No legacy tables, generated files, or source modules are deleted by this phase.
+The implementation favors truthful evidence states over automated professional conclusions. Visual similarity is not authenticity or infringement; image change is not confirmed damage; a computed range is not a certified appraisal; and an evidence package does not decide liability.
 
-## Phase 1 architecture
+## Run locally
 
-```text
-React 18 + Vite + React Router + TanStack Query
-                       │
-                       ▼
-              FastAPI /api/v1
-          auth + organization RBAC
-               │       │
-               │       └── private local/S3-compatible asset storage
-               ▼
-      PostgreSQL 17 + RLS + pgvector
-               │
-               └── Redis + Celery worker foundation
-```
-
-FastAPI is the application authorization boundary. Every business query is scoped by `organization_id`; PostgreSQL RLS and explicit Data API grants provide defense in depth. Uploaded images are size checked, decoded with Pillow, matched against their declared MIME type, SHA-256 fingerprinted, kept private, and served through expiring links. A fingerprint identifies file bytes—it is not evidence of authenticity.
-
-## Fastest local start
-
-Docker Desktop or another Docker daemon is required:
+Prerequisites: Docker Desktop, or Python 3.11–3.13 with `uv`, Node 22+, PostgreSQL 17/pgvector, Redis, and Tesseract.
 
 ```bash
+cp backend/.env.example backend/.env
 docker compose up --build
 ```
 
-Open `http://localhost:8080`. The Compose profile starts PostgreSQL/pgvector, Redis, applies Alembic migrations, starts the API and Celery worker, and serves the frontend. Development authentication is intentionally fixed and local while `AUTH_REQUIRED=false`.
+Open <http://localhost:8080>. The API is available at <http://localhost:18000>. Local ports deliberately avoid a standard Supabase stack: PostgreSQL `55432`, Redis `56379`, API `18000`, web `8080`.
 
-Persistent named volumes hold PostgreSQL, Redis, and private uploaded assets. `docker compose down` stops services without deleting those volumes. Do not use `docker compose down -v` if you need the local records.
+Compose applies additive Alembic migrations, starts FastAPI, Redis, a Celery worker, and the React frontend. Named volumes retain database, queue, and private asset data. `docker compose down` is safe; do not add `-v` unless you intend to delete local volumes.
 
-## Native development
+## What is implemented
 
-Prerequisites: Python 3.10–3.13, [uv](https://docs.astral.sh/uv/), Node 22.12+, PostgreSQL 17 with pgvector, and Redis.
+- Organization workspaces, backend RBAC, PostgreSQL RLS, audit events, entitlements, and metering.
+- Canonical Artwork Registry with private, validated, single-use uploads and expiring downloads.
+- Versioned visual fingerprinting, deterministic CPU embeddings, tenant-scoped retrieval, image registration/comparison, model registry, and synthetic smoke evaluation.
+- Evidence ingestion, Tesseract OCR, chunking, private 1536-dimensional feature-hash embeddings, hybrid retrieval, citations, provenance assertions, and sensitivity controls.
+- Six engine workspaces with real persisted records and explicit professional decision boundaries.
+- Six consent-gated CrewAI configurations with narrow tools, structured outputs, citation validation, execution telemetry, partial-failure status, and human review.
+- Versioned reports and versioned JSON/PDF Artwork Intelligence Passports.
+- Stripe Checkout/webhook integration, organization entitlements, quotas, security headers, rate limiting, structured logs, metrics, health checks, backups, and restore drills.
 
-The Compose defaults deliberately use host ports `55432` for PostgreSQL, `56379` for Redis, and `18000` for the API so they can coexist with a standard local Supabase stack. Override them with `VERNIS_POSTGRES_PORT`, `VERNIS_REDIS_PORT`, or `VERNIS_API_PORT` when needed.
+The baseline CV and text descriptors are real deterministic inference, but they are not domain-trained OpenCLIP/segmentation/semantic models. No licensed external rights or market-data provider is bundled. Those capabilities remain visibly unavailable rather than returning invented results. See [model evaluation](docs/model-evaluation.md) and [implementation status](docs/implementation-status.md).
+
+## Native development and verification
 
 ```bash
 make install
 docker compose up -d postgres redis
 make migrate
-make dev-api
-```
-
-In a second terminal:
-
-```bash
-make dev-web
-```
-
-Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env.local` when enabling external providers. `backend/pyproject.toml` and `backend/uv.lock` are authoritative; the requirements files are compatibility entry points only.
-
-## Authentication and production storage
-
-For Supabase Auth, configure `SUPABASE_URL`, set `AUTH_REQUIRED=true`, and set the browser-safe `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Never expose a service-role key to the frontend.
-
-Production startup rejects disabled authentication, local storage, and the default signing secret. Configure an S3-compatible private bucket with:
-
-```text
-STORAGE_BACKEND=s3
-STORAGE_BUCKET=...
-STORAGE_ENDPOINT_URL=...       # optional for AWS S3
-STORAGE_REGION=...
-STORAGE_ACCESS_KEY_ID=...
-STORAGE_SECRET_ACCESS_KEY=...
-STORAGE_SIGNING_SECRET=...     # at least 32 random characters
-```
-
-The additive Alembic migration creates the separate `vernis` schema and does not rename or drop legacy `public` tables. Supabase RLS checks live in `supabase/tests/vernis_phase1_rls.sql`. Before applying to any existing hosted project, take a backup and reconcile its live schema:
-
-```bash
-make migration-check   # renders SQL without mutating a database
-make migrate
-make db-inspect        # read-only table/revision/RLS summary
-```
-
-## Current API
-
-- `GET /api/v1/health/live` and `GET /api/v1/health/ready`
-- `GET|POST /api/v1/organizations`
-- `GET /api/v1/organizations/{organization_id}/command-center`
-- `GET|POST /api/v1/organizations/{organization_id}/artworks`
-- `GET /api/v1/organizations/{organization_id}/artworks/{artwork_id}`
-- `POST /api/v1/organizations/{organization_id}/assets/upload-intents`
-- `PUT /api/v1/assets/uploads/{single_use_token}`
-- `GET /api/v1/organizations/{organization_id}/assets/{asset_id}/download`
-
-The legacy `/api/studio`, billing, advisory, and architecture-demo endpoints remain available for `/legacy`; they are not part of the new Phase 1 authority model.
-
-## Verification
-
-```bash
-make lint
 make test
+make lint
 make build
-docker compose config --quiet
+make performance
 ```
 
-With migrated PostgreSQL available, set `VERNIS_TEST_DATABASE_URL` to run the live RLS integration test. With the API and frontend running, install Chromium once and run the real onboarding/upload browser flow:
+Run the live RLS matrix against the local Compose database:
 
 ```bash
-cd frontend
-npx playwright install chromium
-npm run test:e2e
+cd backend
+VERNIS_TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:55432/vernis \
+  uv run pytest -m postgres tests/test_postgres_rls.py
 ```
 
-CI repeats linting, unit/API tests, a PostgreSQL migration plus cross-tenant RLS test, the frontend production build/audit, and the Playwright onboarding/upload journey.
+Run the browser onboarding/upload journey with `cd frontend && npm run test:e2e`. CI repeats migrations, backend tests, RLS isolation, frontend tests/build, dependency audit, and the Playwright journey.
 
-## Product and rebuild documentation
+## External services
 
-- [Master rebuild plan](docs/VERNIS_MASTER_REBUILD_PLAN.md)
-- [UI design specification](docs/VERNIS_UI_DESIGN_SPEC.md)
+Local development works without hosted services. External AI is disabled unless `CREW_ENABLED`, `EXTERNAL_AI_TEXT_ENABLED`, an API key, and per-run user consent are all present. Images are never included in the current external agent payload. Stripe Checkout and webhooks remain unavailable until Stripe secrets and plan price IDs are configured. Production startup rejects development authentication, local storage, and the default signing secret.
 
-Phase 2 begins shared computer-vision infrastructure only after this foundation is reviewed. ArtSentinel and the other engines are not represented as complete in Phase 1.
+Alembic is the application-schema authority. Supabase supplies Auth/Postgres/RLS compatibility, but its migration directory is not a second copy of application DDL. Reconcile and back up a hosted project before applying migrations.
+
+## Operations
+
+```bash
+./scripts/backup.sh
+make restore-drill BACKUP=backups/<timestamp>
+```
+
+The restore drill replaces only the dedicated `vernis_restore_drill` scratch database and never modifies the active `vernis` database. Production configuration, rollout, rollback, monitoring, and incident steps are in [deployment](docs/deployment.md) and [operations runbook](docs/operations-runbook.md).
+
+## Documentation
+
+- [Product vision](docs/product-vision.md)
+- [System architecture](docs/system-architecture.md)
+- [Database design](docs/database-design.md)
+- [API design](docs/api-design.md)
+- [Computer vision](docs/computer-vision.md)
+- [CrewAI architecture](docs/crewai-architecture.md)
+- [Multimodal RAG](docs/multimodal-rag.md) and [evidence graph](docs/evidence-graph.md)
+- [Security and AI data handling](docs/security.md)
+- [SaaS architecture](docs/saas-architecture.md)
+- [Model evaluation](docs/model-evaluation.md)
+- [Deployment](docs/deployment.md) and [operations](docs/operations-runbook.md)
+- [Engineering decisions](docs/engineering-decisions.md)
+- [Implementation status](docs/implementation-status.md)
+- [Master rebuild plan](docs/VERNIS_MASTER_REBUILD_PLAN.md) and [UI specification](docs/VERNIS_UI_DESIGN_SPEC.md)

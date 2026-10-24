@@ -18,6 +18,7 @@ def test_postgres_rls_hides_other_tenants_and_enforces_editor_roles() -> None:
     connection = psycopg.connect(database_url.replace("postgresql+psycopg://", "postgresql://"))
     try:
         with connection.cursor() as cursor:
+            artwork_a, artwork_b = uuid.uuid4(), uuid.uuid4()
             cursor.executemany(
                 "insert into vernis.users (id, email, display_name) values (%s, %s, %s)",
                 [
@@ -42,8 +43,28 @@ def test_postgres_rls_hides_other_tenants_and_enforces_editor_roles() -> None:
                    (id, organization_id, title, attribution_status, date_precision, dimensions, status, created_by)
                    values (%s, %s, %s, 'unknown', 'unknown', '{}'::jsonb, 'draft', %s)""",
                 [
-                    (uuid.uuid4(), org_a, "Tenant A work", owner_a),
-                    (uuid.uuid4(), org_b, "Tenant B work", owner_b),
+                    (artwork_a, org_a, "Tenant A work", owner_a),
+                    (artwork_b, org_b, "Tenant B work", owner_b),
+                ],
+            )
+            cursor.executemany(
+                """insert into vernis.engine_cases
+                   (id, organization_id, artwork_id, engine, title, status, risk_level, input_data, limitations, created_by)
+                   values (%s, %s, %s, 'artsentinel', %s, 'draft', 'not_assessed', '{}'::jsonb, '[]'::jsonb, %s)""",
+                [
+                    (uuid.uuid4(), org_a, artwork_a, "Tenant A case", owner_a),
+                    (uuid.uuid4(), org_b, artwork_b, "Tenant B case", owner_b),
+                ],
+            )
+            cursor.executemany(
+                """insert into vernis.evidence_documents
+                   (id, organization_id, artwork_id, title, kind, verification_status, sensitivity,
+                    external_ai_consent, metadata_fields, created_by)
+                   values (%s, %s, %s, %s, 'other', 'unverified', %s, false, '{}'::jsonb, %s)""",
+                [
+                    (uuid.uuid4(), org_a, artwork_a, "Tenant A internal", "internal", owner_a),
+                    (uuid.uuid4(), org_a, artwork_a, "Tenant A restricted", "restricted", owner_a),
+                    (uuid.uuid4(), org_b, artwork_b, "Tenant B internal", "internal", owner_b),
                 ],
             )
 
@@ -51,6 +72,10 @@ def test_postgres_rls_hides_other_tenants_and_enforces_editor_roles() -> None:
             cursor.execute("select set_config('request.jwt.claim.sub', %s, true)", (str(owner_a),))
             cursor.execute("select organization_id, title from vernis.artworks where organization_id in (%s, %s)", (org_a, org_b))
             assert cursor.fetchall() == [(org_a, "Tenant A work")]
+            cursor.execute("select title from vernis.engine_cases order by title")
+            assert cursor.fetchall() == [("Tenant A case",)]
+            cursor.execute("select title from vernis.evidence_documents order by title")
+            assert cursor.fetchall() == [("Tenant A internal",), ("Tenant A restricted",)]
 
             cursor.execute("savepoint cross_tenant_write")
             with pytest.raises(psycopg.errors.InsufficientPrivilege):
@@ -63,6 +88,8 @@ def test_postgres_rls_hides_other_tenants_and_enforces_editor_roles() -> None:
             cursor.execute("rollback to savepoint cross_tenant_write")
 
             cursor.execute("select set_config('request.jwt.claim.sub', %s, true)", (str(viewer_a),))
+            cursor.execute("select title from vernis.evidence_documents order by title")
+            assert cursor.fetchall() == [("Tenant A internal",)]
             cursor.execute("savepoint viewer_write")
             with pytest.raises(psycopg.errors.InsufficientPrivilege):
                 cursor.execute(

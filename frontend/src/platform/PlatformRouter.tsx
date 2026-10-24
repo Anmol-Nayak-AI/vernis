@@ -9,10 +9,12 @@ const ArtworkRegistry = lazy(() => import('./pages/ArtworkRegistry').then((modul
 const CommandCenter = lazy(() => import('./pages/CommandCenter').then((module) => ({ default: module.CommandCenter })));
 const PublicLanding = lazy(() => import('./pages/PublicLanding').then((module) => ({ default: module.PublicLanding })));
 const WorkspaceGate = lazy(() => import('./pages/WorkspaceGate').then((module) => ({ default: module.WorkspaceGate })));
-
-function SettingsPlaceholder() {
-  return <section className="v2-page"><header className="v2-page-header"><div><p className="v2-kicker">Organization governance</p><h1>Settings</h1><p>Membership, roles, security, provider consent, and retention controls will be released with their backend enforcement.</p></div></header><div className="v2-state"><strong>No configurable settings in this slice.</strong><span>This page deliberately avoids presenting non-functional controls.</span></div></section>;
-}
+const EngineWorkspace = lazy(() => import('./pages/EngineWorkspace').then((module) => ({ default: module.EngineWorkspace })));
+const CaseDetail = lazy(() => import('./pages/CaseDetail').then((module) => ({ default: module.CaseDetail })));
+const EvidenceLibrary = lazy(() => import('./pages/EvidenceLibrary').then((module) => ({ default: module.EvidenceLibrary })));
+const AgentOperations = lazy(() => import('./pages/AgentOperations').then((module) => ({ default: module.AgentOperations })));
+const ReportsHub = lazy(() => import('./pages/ReportsHub').then((module) => ({ default: module.ReportsHub })));
+const OrganizationSettings = lazy(() => import('./pages/OrganizationSettings').then((module) => ({ default: module.OrganizationSettings })));
 
 export function PlatformRouter() {
   return <Suspense fallback={<LoadingState label="Opening Vernis" />}><Routes>
@@ -24,7 +26,17 @@ export function PlatformRouter() {
       <Route path="command" element={<CommandCenter />} />
       <Route path="artworks" element={<ArtworkRegistry />} />
       <Route path="artworks/:artworkId" element={<ArtworkDetail />} />
-      <Route path="settings" element={<SettingsPlaceholder />} />
+      <Route path="engines/artsentinel" element={<EngineWorkspace engine="artsentinel" />} />
+      <Route path="engines/artshield" element={<EngineWorkspace engine="artshield" />} />
+      <Route path="engines/conservavision" element={<EngineWorkspace engine="conservavision" />} />
+      <Route path="engines/musegraph" element={<EngineWorkspace engine="musegraph" />} />
+      <Route path="engines/artvaluate" element={<EngineWorkspace engine="artvaluate" />} />
+      <Route path="engines/arttransit" element={<EngineWorkspace engine="arttransit" />} />
+      <Route path="cases/:caseId" element={<CaseDetail />} />
+      <Route path="evidence" element={<EvidenceLibrary />} />
+      <Route path="agents" element={<AgentOperations />} />
+      <Route path="reports" element={<ReportsHub />} />
+      <Route path="settings" element={<OrganizationSettings />} />
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes></Suspense>;

@@ -7,15 +7,19 @@ const png = Buffer.from(
 
 test('creates a tenant-scoped artwork and securely uploads its primary image', async ({ page }) => {
   const slug = `e2e-gallery-${Date.now()}`;
+  const artworkTitle = `E2E Verifiable Study ${Date.now()}`;
   await page.goto('/app');
-  await page.getByLabel('Organization name').fill('E2E Gallery');
-  await page.getByLabel('Workspace URL key').fill(slug);
-  await page.getByRole('button', { name: /Create secure workspace/i }).click();
+  const organizationName = page.getByLabel('Organization name');
+  if (await organizationName.isVisible()) {
+    await organizationName.fill('E2E Gallery');
+    await page.getByLabel('Workspace URL key').fill(slug);
+    await page.getByRole('button', { name: /Create secure workspace/i }).click();
+  }
 
   await expect(page.getByRole('heading', { name: 'Command Center' })).toBeVisible();
-  await page.getByRole('link', { name: 'Artwork Registry' }).click();
+  await page.getByRole('link', { name: 'Artwork Registry', exact: true }).click();
   await page.getByRole('button', { name: /Register artwork/i }).click();
-  await page.getByLabel('Artwork title *').fill('E2E Verifiable Study');
+  await page.getByLabel('Artwork title *').fill(artworkTitle);
   await page.getByLabel('Claimed artist attribution').fill('Test fixture artist');
   await page.getByLabel('Medium').fill('PNG test fixture');
   await page.locator('input[type="file"]').setInputFiles({
@@ -25,7 +29,7 @@ test('creates a tenant-scoped artwork and securely uploads its primary image', a
   });
   await page.getByRole('button', { name: /Create artwork record/i }).click();
 
-  await expect(page.getByRole('heading', { name: 'E2E Verifiable Study' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: artworkTitle })).toBeVisible();
   await expect(page.getByText('SHA-256 file fingerprint')).toBeVisible();
   await expect(page.getByText(/Identifies these bytes—not authenticity/i)).toBeVisible();
 });

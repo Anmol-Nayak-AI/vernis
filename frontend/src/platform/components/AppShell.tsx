@@ -6,12 +6,12 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../api';
 
 const ENGINES = [
-  ['ArtSentinel', 'Authenticity & provenance', Fingerprint],
-  ['ArtShield', 'Rights monitoring', Shield],
-  ['ConservaVision', 'Condition intelligence', Sparkles],
-  ['ArtValuate', 'Market intelligence', Archive],
-  ['MuseGraph', 'Collection intelligence', Network],
-  ['ArtTransit', 'Shipment evidence', PackageCheck],
+  ['artsentinel', 'ArtSentinel', 'Authenticity & provenance', Fingerprint],
+  ['artshield', 'ArtShield', 'Rights monitoring', Shield],
+  ['conservavision', 'ConservaVision', 'Condition intelligence', Sparkles],
+  ['musegraph', 'MuseGraph', 'Collection intelligence', Network],
+  ['artvaluate', 'ArtValuate', 'Market intelligence', Archive],
+  ['arttransit', 'ArtTransit', 'Shipment evidence', PackageCheck],
 ] as const;
 
 export function AppShell() {
@@ -41,12 +41,13 @@ export function AppShell() {
         <p>Workspace</p>
         <NavLink to={`/app/${orgId}/command`} onClick={close}><Boxes />Command Center</NavLink>
         <NavLink to={`/app/${orgId}/artworks`} onClick={close}><Archive />Artwork Registry</NavLink>
-        <span className="v2-nav-disabled"><BookOpen />Evidence Library <em>Next</em></span>
-        <span className="v2-nav-disabled"><FileText />Reports <em>Next</em></span>
+        <NavLink to={`/app/${orgId}/evidence`} onClick={close}><BookOpen />Evidence Library</NavLink>
+        <NavLink to={`/app/${orgId}/reports`} onClick={close}><FileText />Reports</NavLink>
+        <NavLink to={`/app/${orgId}/agents`} onClick={close}><Sparkles />Agent Operations</NavLink>
         <p>Intelligence engines</p>
-        {ENGINES.map(([name, description, Icon]) => <span className="v2-engine-link" key={name}><Icon /><span><strong>{name}</strong><small>{description}</small></span><em>Planned</em></span>)}
+        {ENGINES.map(([key, name, description, Icon]) => <NavLink className="v2-engine-link" to={`/app/${orgId}/engines/${key}`} onClick={close} key={key}><Icon /><span><strong>{name}</strong><small>{description}</small></span><em>Live</em></NavLink>)}
       </nav>
-      <footer><span>Phase 1 foundation</span><p>Real registry data. No simulated intelligence results.</p><NavLink to="/legacy">Open legacy prototype</NavLink><button onClick={() => navigate(`/app/${orgId}/settings`)}><Settings />Organization settings</button></footer>
+      <footer><span>Evidence-first platform</span><p>Real organization records. No simulated intelligence results.</p><NavLink to="/legacy">Open legacy prototype</NavLink><button onClick={() => navigate(`/app/${orgId}/settings`)}><Settings />Organization settings</button></footer>
     </aside>
     {mobileOpen && <button className="v2-nav-scrim" onClick={close} aria-label="Close navigation overlay" />}
     <main id="main-content" className="v2-main"><Outlet /></main>

@@ -58,15 +58,21 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     stripe_price_creator: str = ""
     stripe_price_studio: str = ""
+    stripe_price_artist: str = ""
+    stripe_price_professional: str = ""
+    stripe_price_gallery: str = ""
+    stripe_price_institution: str = ""
     stripe_price_enterprise: str = ""
     frontend_url: str = "http://localhost:5173"
 
     # Optional multi-agent advisory layer. Image creation never depends on it.
     crew_enabled: bool = False
     crew_model: str = "gpt-4o-mini"
+    external_ai_text_enabled: bool = False
 
     # CORS Settings
     allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    rate_limit_per_minute: int = 240
 
     @property
     def cors_origins_list(self) -> List[str]:

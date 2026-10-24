@@ -105,10 +105,13 @@ class DownloadRead(BaseModel):
 
 class CommandCenterRead(BaseModel):
     registered_artworks: int
+    active_investigations: int
     active_jobs: int
     pending_reviews: int
     potential_copyright_matches: int
     condition_alerts: int
     active_shipments: int
     collection_completeness: int | None
+    workflows_this_month: int
+    recent_workflows: list[dict[str, Any]]
     onboarding_complete: bool

@@ -1,6 +1,6 @@
 # VERNIS Master Rebuild Plan
 
-Status: Phase 0 approved; Phase 1 foundation implemented for review on 2026-10-23
+Status: Phases 0–10 integrated local implementation completed on 2026-10-23; domain/provider production gates remain documented
 
 Prepared: 2026-10-23
 
@@ -687,3 +687,28 @@ Verification completed in this workspace:
 - Desktop and mobile landing-page renders were inspected after the final build.
 
 The Docker daemon was unavailable in the implementation environment, so the live PostgreSQL migration/RLS test and full Compose boot are encoded in CI but were not executed locally. No hosted Supabase project was mutated. Phase 2 remains gated on review of this checkpoint.
+
+## 21. Phases 2–10 implementation checkpoint
+
+The historical Phase 1 note above describes conditions at that checkpoint. Docker later became available in the same workspace. The Compose stack, additive migrations through `20261023_0005`, pgvector indexes, API, worker, and frontend were subsequently exercised locally. The PostgreSQL cross-tenant/RLS allow-deny matrix passed against the migrated Compose database.
+
+Implemented without deleting or renaming legacy code, data, generated assets, or `public` schema objects:
+
+- Phase 2: secure versioned image decode, SHA-256/dHash fingerprints, deterministic CPU visual descriptors, tenant-scoped retrieval, image registration/comparison, model registry, HNSW index, and explicitly synthetic smoke evaluation.
+- Phases 3–8: persisted API and UI workflows for ArtSentinel, ArtShield, ConservaVision, MuseGraph, ArtValuate, and ArtTransit; exact domain CrewAI teams; evidence citations; human review; and professional-decision boundaries.
+- Phase 9: OCR/chunking/hybrid evidence retrieval, evidence graph relationships, cross-engine history/navigation, agent operations, reports, and versioned internal/public JSON/PDF passports.
+- Phase 10: organization entitlements and quotas, usage events, signed idempotent Stripe webhooks, security headers, production rate-limit path, structured request logs, Prometheus-format metrics, CI, performance smoke tooling, backup/restore drill scripts, deployment guidance, and the required documentation set.
+
+The completed release slice is operational, not scientifically overclaimed. The bundled visual descriptor is not OpenCLIP or a trained conservation segmentation model; the text vector is a private lexical feature hash rather than a semantic transformer; no licensed external rights-discovery or market-data provider is configured; and hosted high-availability, alert wiring, provider contracts, licensed expert datasets, domain accuracy evaluation, and production restore evidence remain deployment-owner release gates. Missing providers return explicit unavailable or insufficient-evidence states and never simulated findings.
+
+## 22. Final local acceptance checkpoint
+
+Verified on 2026-10-24 against the final Compose images and preserved named volumes:
+
+- PostgreSQL and Redis healthy; API readiness passed directly and through Nginx; API and worker share one backend image.
+- Alembic is at `20261023_0005` and `alembic check` reports no new upgrade operations.
+- PostgreSQL RLS cross-tenant reads/writes and restricted-evidence visibility passed against the live database.
+- Tesseract extracted the expected text from a generated image inside the API container; all six CrewAI team definitions imported in the worker with their required agent counts.
+- Backend lint/tests, frontend audit/tests/build, Compose validation, dependency audit policy, Chromium onboarding/upload, and Git whitespace/secret checks passed.
+- Desktop and mobile renders have no horizontal overflow or console errors.
+- A full database/assets backup was restored with fail-fast behavior into `vernis_restore_drill`; all 36 application tables, pgvector, the private RLS helper, visual embeddings, and evidence chunks were present. The active database was not modified.

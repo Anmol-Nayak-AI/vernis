@@ -1,0 +1,20 @@
+{
+  "suite": "vernis-local-cpu-smoke-v1",
+  "recorded_at": "2026-10-23",
+  "environment": {
+    "platform": "macOS-26.4.1-arm64-arm-64bit",
+    "processor": "arm",
+    "python": "3.12.15"
+  },
+  "fixture": "deterministic synthetic data; not a domain-accuracy benchmark",
+  "measurements": {
+    "perceptual_hash_512px": {"iterations": 100, "median_ms": 0.207, "p95_ms": 0.221, "max_ms": 0.291},
+    "text_embedding_1536d": {"iterations": 100, "median_ms": 0.622, "p95_ms": 0.811, "max_ms": 3.013},
+    "visual_descriptor_512px": {"iterations": 100, "median_ms": 2.761, "p95_ms": 3.315, "max_ms": 5.089}
+  },
+  "peak_process_rss_platform_units": 98811904,
+  "limitations": [
+    "Single-process smoke measurement with no concurrency or network traffic.",
+    "Results cannot be extrapolated to production load or domain accuracy."
+  ]
+}
