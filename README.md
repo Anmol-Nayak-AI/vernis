@@ -4,6 +4,18 @@ Vernis is a multi-tenant workspace for evidence-backed artwork intelligence. One
 
 The implementation favors truthful evidence states over automated professional conclusions. Visual similarity is not authenticity or infringement; image change is not confirmed damage; a computed range is not a certified appraisal; and an evidence package does not decide liability.
 
+## For recruiters and reviewers
+
+Start with the [architecture](docs/system-architecture.md), [engineering decisions](docs/engineering-decisions.md), and [implementation status](docs/implementation-status.md). The project demonstrates a React/TypeScript client, a FastAPI modular monolith, PostgreSQL tenant isolation, private asset handling, durable jobs, and evidence-grounded AI workflows.
+
+A useful local walkthrough is: open the workspace, create an organization, register an artwork with an image, run visual analysis, attach evidence, open an engine case, and generate a report or passport. The public landing page is at `/`; the workspace is at `/app`; the preserved prototype is at `/legacy`.
+
+This is a portfolio implementation with documented production gates. Review the limitations below before interpreting model outputs. Local setup and verification commands follow.
+
+## Repository access
+
+Public visibility provides read access; it does not grant permission to push or merge changes. Repository write access is reserved for the owner and explicitly authorized collaborators. Copies and forks are outside the owner's repository permissions. No open-source license is granted by this repository; third-party dependencies retain their own licenses.
+
 ## Run locally
 
 Prerequisites: Docker Desktop, or Python 3.11–3.13 with `uv`, Node 22+, PostgreSQL 17/pgvector, Redis, and Tesseract.

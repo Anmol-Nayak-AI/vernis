@@ -25,10 +25,10 @@ class Settings(BaseSettings):
 
     # Canonical application persistence. Supabase-hosted Postgres is supported
     # through a regular direct connection; tests override this with SQLite.
-    database_url: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres"
+    database_url: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:55432/vernis"
     database_schema: str = "vernis"
     database_echo: bool = False
-    redis_url: str = "redis://127.0.0.1:6379/0"
+    redis_url: str = "redis://127.0.0.1:56379/0"
 
     # Private asset storage. Local mode is intentionally development-only.
     storage_backend: Literal["local", "s3"] = "local"

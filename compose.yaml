@@ -44,8 +44,8 @@ services:
       STORAGE_ROOT: /app/storage
       STORAGE_SIGNING_SECRET: local-compose-only-change-before-production
       AUTH_REQUIRED: "false"
-      CREW_ENABLED: "true"
-      EXTERNAL_AI_TEXT_ENABLED: "true"
+      CREW_ENABLED: "${CREW_ENABLED:-false}"
+      EXTERNAL_AI_TEXT_ENABLED: "${EXTERNAL_AI_TEXT_ENABLED:-false}"
       OTEL_SDK_DISABLED: "true"
       ALLOWED_ORIGINS: http://localhost:8080,http://127.0.0.1:8080
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
@@ -73,8 +73,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       STORAGE_BACKEND: local
       STORAGE_ROOT: /app/storage
-      CREW_ENABLED: "true"
-      EXTERNAL_AI_TEXT_ENABLED: "true"
+      CREW_ENABLED: "${CREW_ENABLED:-false}"
+      EXTERNAL_AI_TEXT_ENABLED: "${EXTERNAL_AI_TEXT_ENABLED:-false}"
       OTEL_SDK_DISABLED: "true"
     command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=INFO"]
     volumes:
