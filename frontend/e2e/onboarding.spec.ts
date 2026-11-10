@@ -10,6 +10,8 @@ test('creates a tenant-scoped artwork and securely uploads its primary image', a
   const artworkTitle = `E2E Verifiable Study ${Date.now()}`;
   await page.goto('/app');
   const organizationName = page.getByLabel('Organization name');
+  // Wait for the organization query before choosing onboarding or an existing workspace.
+  await expect(organizationName.or(page.getByRole('heading', { name: 'Command Center' }))).toBeVisible();
   if (await organizationName.isVisible()) {
     await organizationName.fill('E2E Gallery');
     await page.getByLabel('Workspace URL key').fill(slug);
