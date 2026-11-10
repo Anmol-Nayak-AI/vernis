@@ -22,7 +22,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
-RUN uv sync --frozen --no-dev && mkdir -p /app/storage && chown -R vernis:vernis /app
+RUN uv sync --frozen --no-dev \
+    && mkdir -p /app/storage /app/generated \
+    && chown vernis:vernis /app/storage /app/generated
 
 USER vernis
 EXPOSE 8000
