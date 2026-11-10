@@ -15,7 +15,7 @@ jobs:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:54322/vernis
       VERNIS_TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:54322/vernis
       VERNIS_POSTGRES_PORT: "54322"
-      STORAGE_SIGNING_SECRET: ci-only-signing-secret
+      STORAGE_SIGNING_SECRET: ci-only-signing-secret-at-least-32-characters
       AUTH_REQUIRED: "false"
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +29,9 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Start PostgreSQL and Redis
-        run: docker compose up -d postgres redis
+        run: |
+          cp backend/.env.example backend/.env
+          docker compose up -d --wait postgres redis
 
       - name: Install backend
         run: |
@@ -69,8 +71,8 @@ jobs:
           cd ../frontend
           npm run dev -- --host 127.0.0.1 > /tmp/vernis-web.log 2>&1 &
           npx playwright install --with-deps chromium
-          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:8000/api/v1/health/ready && break; sleep 2; done
-          for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:5173/ && break; sleep 2; done
+          curl --fail --silent --retry 30 --retry-connrefused --retry-delay 2 http://127.0.0.1:8000/api/v1/health/ready
+          curl --fail --silent --retry 30 --retry-connrefused --retry-delay 2 http://127.0.0.1:5173/
           npm run test:e2e
 
       - name: Show service logs on failure
